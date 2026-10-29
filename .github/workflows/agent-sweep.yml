@@ -1,0 +1,135 @@
+name: Current agent iteration (review gated)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: current-agent-sweep
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    if: ${{ github.repository == 'StudyMate-N/payment-recovery-autopilot' && vars.AGENT_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check review queue and backlog
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          open_prs="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq 'length')"
+          if [[ "$open_prs" != "0" ]]; then
+            echo "Open PRs require review: $open_prs"
+            echo 'proceed=false' >> "$GITHUB_OUTPUT"
+          elif ! grep -q -- '- \[ \]' docs/AGENT-BACKLOG.md; then
+            echo 'Backlog completed; waiting for release review.'
+            echo 'proceed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'proceed=true' >> "$GITHUB_OUTPUT"
+          fi
+  generate:
+    needs: gate
+    if: ${{ needs.gate.outputs.proceed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    outputs:
+      has_patch: ${{ steps.diff.outputs.has_patch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Baseline checks
+        run: npm run check
+      - name: Run one bounded Codex coding cycle
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: docs/agent-loop-prompt.md
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+          codex-args: '["--ephemeral"]'
+          output-file: /tmp/codex-result.md
+      - name: Package source patch only
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -N .
+          git diff --binary HEAD -- . ':(exclude).github' ':(exclude)AGENTS.md' > codex.patch
+          bytes=$(wc -c < codex.patch)
+          if (( bytes > 120000 )); then
+            echo "Patch too large ($bytes bytes); abort."
+            exit 1
+          fi
+          if (( bytes > 0 )); then
+            echo 'has_patch=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'has_patch=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload patch for isolated review job
+        if: steps.diff.outputs.has_patch == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-agent-patch
+          path: codex.patch
+          retention-days: 2
+  propose:
+    needs: [gate,generate]
+    if: ${{ needs.generate.outputs.has_patch == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: current-agent-patch
+      - name: Apply and verify patch without model credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check codex.patch
+          git apply --index codex.patch
+          npm run check
+      - name: Submit review-only PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="agent/sweep-$GITHUB_RUN_ID"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git commit -m "Agent-proposed MVP improvement"
+          git push origin "$branch"
+          printf '%s\n' 'One bounded automated engineering iteration. CI must pass and a human must review before merge. No production changes are authorized.' > /tmp/pr-body.md
+          gh pr create --base main --head "$branch" --title "Review: agent-proposed MVP improvement" --body-file /tmp/pr-body.md
