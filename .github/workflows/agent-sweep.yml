@@ -39,10 +39,22 @@ jobs:
             echo 'Backlog completed; waiting for release review.'
             echo 'proceed=false' >> "$GITHUB_OUTPUT"
           else
-            # Ledger records *attempts*, including failures/no-patch runs.
+            # Ledger counts API attempts even on failure/no-patch.
             ledger="$(gh issue list -R "$GITHUB_REPOSITORY" --state all --search 'in:title Current agent compute ledger' --json number,title --jq '[.[] | select(.title == "Current agent compute ledger")] | first | .number // empty')"
             if [[ -z "$ledger" ]]; then
-              ledger="$(gh issue create -R "$GITHUB_REPOSITORY" --title 'Current agent compute ledger' --body 'Non-sensitive usage-control log. Each comment records a single paid coding-cycle attempt, not actual invoiced API spend.' | grep -oE '[0-9]+
+              ledger="$(gh issue create -R "$GITHUB_REPOSITORY" --title 'Current agent compute ledger' --body 'Non-sensitive API attempt log. Each comment is one reserved paid agent cycle.' | grep -oE '[0-9]+$')"
+            fi
+            since="$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+            attempts="$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$ledger/comments?per_page=100" --jq '.[] | select(.body | startswith("agent-cycle-started:")) | select(.created_at >= "'"$since"'") | .id' | wc -l | tr -d ' ')"
+            if (( attempts >= 2 )); then
+              echo "Daily limit reached: $attempts attempts in rolling 24h; no API call."
+              echo 'proceed=false' >> "$GITHUB_OUTPUT"
+            else
+              gh issue comment -R "$GITHUB_REPOSITORY" "$ledger" --body "agent-cycle-started:$GITHUB_RUN_ID"
+              echo "Reserved attempt $((attempts + 1)) of 2."
+              echo 'proceed=true' >> "$GITHUB_OUTPUT"
+            fi
+          fi
   generate:
     needs: gate
     if: ${{ needs.gate.outputs.proceed == 'true' }}
@@ -117,7 +129,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: current-agent-patch
-      - name: Validate untrusted patch with NO write token and NO model credential
+      - name: Test untrusted patch with read-only GitHub access
         shell: bash
         run: |
           set -euo pipefail
@@ -141,7 +153,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: current-agent-patch
-      - name: Check and stage patch without executing untrusted code
+      - name: Apply patch without running agent-written code
         shell: bash
         run: |
           set -euo pipefail
