@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   gate:
-    if: ${{ github.repository == 'StudyMate-N/payment-recovery-autopilot' && vars.AGENT_ENABLED == 'true' }}
+    if: ${{ github.repository == 'StudyMate-N/payment-recovery-autopilot' && vars.AGENT_ENABLED == 'true' && vars.API_HARD_CAP_CONFIRMED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
