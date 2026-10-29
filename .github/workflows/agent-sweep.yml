@@ -17,6 +17,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      issues: write
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
     steps:
@@ -38,13 +39,15 @@ jobs:
             echo 'Backlog completed; waiting for release review.'
             echo 'proceed=false' >> "$GITHUB_OUTPUT"
           else
-            echo 'proceed=true' >> "$GITHUB_OUTPUT"
-          fi
+            # Ledger records *attempts*, including failures/no-patch runs.
+            ledger="$(gh issue list -R "$GITHUB_REPOSITORY" --state all --search 'in:title Current agent compute ledger' --json number,title --jq '[.[] | select(.title == "Current agent compute ledger")] | first | .number // empty')"
+            if [[ -z "$ledger" ]]; then
+              ledger="$(gh issue create -R "$GITHUB_REPOSITORY" --title 'Current agent compute ledger' --body 'Non-sensitive usage-control log. Each comment records a single paid coding-cycle attempt, not actual invoiced API spend.' | grep -oE '[0-9]+
   generate:
     needs: gate
     if: ${{ needs.gate.outputs.proceed == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     permissions:
       contents: read
     outputs:
@@ -65,8 +68,10 @@ jobs:
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           prompt-file: docs/agent-loop-prompt.md
-          sandbox: workspace-write
+          permission-profile: ':workspace'
           safety-strategy: drop-sudo
+          model: gpt-5.3-codex
+          effort: low
           codex-args: '["--ephemeral"]'
           output-file: /tmp/codex-result.md
       - name: Package source patch only
@@ -93,11 +98,38 @@ jobs:
           name: current-agent-patch
           path: codex.patch
           retention-days: 2
-  propose:
+  validate:
     needs: [gate,generate]
     if: ${{ needs.generate.outputs.has_patch == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: current-agent-patch
+      - name: Validate untrusted patch with NO write token and NO model credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check codex.patch
+          git apply --index codex.patch
+          npm run check
+
+  propose:
+    needs: [gate,generate,validate]
+    if: ${{ needs.validate.result == 'success' && needs.generate.outputs.has_patch == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
@@ -106,19 +138,19 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
       - uses: actions/download-artifact@v4
         with:
           name: current-agent-patch
-      - name: Apply and verify patch without model credential
+      - name: Check and stage patch without executing untrusted code
         shell: bash
         run: |
           set -euo pipefail
           git apply --check codex.patch
           git apply --index codex.patch
-          npm run check
+          if git diff --cached --name-only | grep -E '^(\.github/|AGENTS\.md$|\.env|\.git/)' ; then
+            echo 'Protected file change rejected.'
+            exit 1
+          fi
       - name: Submit review-only PR
         env:
           GH_TOKEN: ${{ github.token }}
