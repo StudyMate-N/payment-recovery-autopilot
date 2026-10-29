@@ -22,7 +22,7 @@ The 2/day count limits invocations, **not tokens or dollars per invocation**. Co
 2. Go to organization settings > Projects > `current-coding-agent` > **Limits**. Set monthly spend to **$10**, enable **Enforce a hard limit**, and configure alerts at $5 and $8. Confirm model access and actual account usage/rate limits. If you cannot set a hard limit, **do not activate**.
 3. Create a **project-scoped** API key for the project at [API keys](https://platform.openai.com/api-keys). Prefer the least privileges compatible with running Codex Responses requests.
 4. Add the credential directly to this repository's **Settings > Secrets and variables > Actions > Secrets**, named `OPENAI_API_KEY`. Do not put it in a repo file, Vercel public env variable, issue, or chat.
-5. After reviewing/merging PR #4 and clearing other open PRs, set the repository **Actions variable** `AGENT_ENABLED=true`. Leave false until all controls and permissions are verified. Change to false to pause.
+5. After reviewing/merging PR #4 and clearing other open PRs, set **Actions variables** `API_HARD_CAP_CONFIRMED=true` only after verifying the $10 hard cap in the API Platform, and `AGENT_ENABLED=true` to opt in. Leave both unset or false until all controls and permissions are verified. Change to false to pause.
 6. Under GitHub **Settings > Actions > General**, verify appropriate workflow permissions for opening review-only PRs. Use protected branches and human approval; the gate logs run reservations through an issue.
 7. Start one manual workflow run, verify it creates exactly one review PR without secrets, and inspect OpenAI API Usage/Billing. Stop and repair if any check fails.
 
