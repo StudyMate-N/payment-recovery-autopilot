@@ -8,7 +8,17 @@ test('import rejects malformed amount',()=>assert.throws(()=>parseInvoices('id,c
 test('draft never sends',()=>assert.match(draft(one),/Friendly reminder/));
 test('currency uses cents',()=>assert.equal(money(12500),'$125.00'));
 
-test('local calendar date is used rather than UTC calendar rollover',()=>assert.equal(localToday(new Date(2026,9,30,0,15)),'2026-10-30'));
+test('local calendar date is used rather than UTC calendar rollover',()=>{
+  const previous=process.env.TZ;
+  try{
+    process.env.TZ='Africa/Nairobi';
+    const instant=new Date('2026-10-29T21:15:00.000Z');
+    assert.equal(instant.toISOString().slice(0,10),'2026-10-29');
+    assert.equal(localToday(instant),'2026-10-30');
+  }finally{
+    if(previous===undefined)delete process.env.TZ;else process.env.TZ=previous;
+  }
+});
 test('future invoice reminder does not falsely say overdue',()=>{
   const message=draft({...one,due:'2026-11-12'},'2026-10-30');
   assert.match(message,/is due on 2026-11-12/);
