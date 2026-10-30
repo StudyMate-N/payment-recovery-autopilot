@@ -27,7 +27,8 @@
 **NOT READY.** No production launch, no real customer data, no automatic collection outreach. The review branch is proposed for human approval only.
 
 ## Verification ledger
-- Unit suite: GitHub CI on this PR (link and result to be checked after push).
+- Unit suite: **PASS**, 12/12 tests, 0 failures (7 baseline + 5 new), `npm run check` in [GitHub Actions run 41010171973](https://github.com/StudyMate-N/payment-recovery-autopilot/actions/runs/41010171973), commit `8d3159291d2ebdc54582c6e74a3baef0d15f98eb`. The test log reports `# tests 12`, `# pass 12`, `# fail 0`.
+- Preview build: **READY** at [Vercel preview](https://payment-recovery-autopilot-7kwgp670s.vercel.app) for commit `8d3159291d2ebdc54582c6e74a3baef0d15f98eb`. Build status is not a browser UX acceptance test.
 - Browser suite: not rerun for this PR because browser workflow is currently on a separate, unmerged PR #3.
 - Security review: not completed.
 - Pilot acceptance and user sign-off: not completed.
