@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "check": "node --check app.js && npm test",
+    "check": "node --check app.js && node --check csv-export.js && npm test",
     "serve": "node scripts/serve.mjs"
   },
   "engines": {
