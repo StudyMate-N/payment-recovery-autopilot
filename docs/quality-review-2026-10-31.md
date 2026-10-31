@@ -16,8 +16,9 @@
 **Tests added:** Four regression tests: dangerous formula prefixes (including leading whitespace, BOM and zero-width characters), normal/quoted/multiline values, full invoice CSV serialization, and empty export. `npm run check` now syntax-checks the new module.
 
 ## Verification ledger
-- **Source/PR review:** completed. This branch contains a focused, unmerged fix.
-- **Unit tests and CI:** see this PR's latest GitHub Actions run for the final result; no local browser E2E was executed in this review.
+- **Source/PR review:** completed. This branch contains a focused, unmerged fix, [PR #6](https://github.com/StudyMate-N/payment-recovery-autopilot/pull/6).
+- **Unit tests and CI:** **PASS 11/11, 0 failures** (7 baseline + 4 new) on [GitHub Actions run 41174222019](https://github.com/StudyMate-N/payment-recovery-autopilot/actions/runs/41174222019), commit `1da65000`; `npm run check` passed. Separately, the four new tests passed in a reconstructed Node 22 local harness. No local browser E2E was executed in this review.
+- **Vercel preview:** **READY** for commit `1da65000` at [feature preview](https://payment-recovery-autopilot-pkl0870hj.vercel.app). This is a build status, not a visual acceptance test.
 - **Browser accessibility, responsive layout and visual polish:** inspected source and existing PR #3, but not independently visually accepted. Mobile currently hides sidebar navigation; no full keyboard/screen-reader audit is recorded.
 - **Security:** one concrete CSV-export injection vector addressed. No independent security review, penetration test or threat-model sign-off completed.
 - **Persistence:** localStorage remains demo-only, with no authenticated, durable or tenant-isolated backend.
