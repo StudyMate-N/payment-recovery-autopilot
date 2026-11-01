@@ -16,7 +16,7 @@
 
 ## Measurable tests and evidence
 - Added **10** deterministic Node regression tests: first-run seed without write, empty saved workspace, malformed JSON, invalid/duplicate saved invoices, storage access failure, successful roundtrip, quota failure, stale-tab overwrite rejection, invalid write rejection and multiline customer data.
-- Existing baseline has **7** tests. Expected total is **17**, subject to the final GitHub Actions run result. Do not claim a test pass unless the linked workflow is completed successfully.
+- Existing baseline has **7** tests. **Verified 17/17 tests passing, 0 failures**, including the 10 new cases, in [GitHub Actions run 41276880038](https://github.com/StudyMate-N/payment-recovery-autopilot/actions/runs/41276880038), commit `a3a6d9ea`. The job completed successfully on 2026-11-01 at approximately 05:25 UTC. The same run executed `node --check app.js`, `node --check demo-storage.js` and `npm test` via `npm run check`.
 - `npm run check` now also runs `node --check demo-storage.js` before the Node test suite.
 - Branch preview: `https://payment-recovery-autopilot-9947b36ab.vercel.app` reported READY at commit `a3a6d9eaa3cea7b1b81d6bb58cdc5d77faf980e8`. Browser screenshots, keyboard audit, storage-quota browser simulation and cross-tab browser E2E were **not** performed in this review.
 
