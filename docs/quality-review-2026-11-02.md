@@ -15,7 +15,8 @@
 - Added **7** deterministic source-contract tests covering mobile navigation, skip link, table semantics, named dialogs, per-invoice action labels, live copy feedback, and computed WCAG AA contrast.
 - This branch inherits **17** tests from PR #7 (7 original + 10 storage regression tests), yielding **24/24 passing, zero failures** in GitHub Actions [run 41394153631](https://github.com/StudyMate-N/payment-recovery-autopilot/actions/runs/41394153631) at commit `d88615f56e6b56e9a8b557b63017a254feccdee6` on 2026-11-02. The job ran `npm run check`; results were confirmed from its job logs.
 - Computed text contrast in the tests for six affected selectors is at least 5.5:1 against the specified white/ivory backgrounds (>=4.5:1 normal text AA threshold). This is **not** a complete WCAG audit.
-- Browser E2E, screen-reader navigation, visual screenshot comparison at 375/768/desktop, and clipboard permission behavior **were not independently run**. PR #3's Playwright browser suite is still unmerged and does not cover these new behaviors.
+- Added four Playwright acceptance scenarios in `e2e/accessibility.spec.mjs` for 375px navigation and table scrolling, keyboard skip navigation, named dialogs and invoice-specific action names. **These browser scenarios have NOT run**, because PR #3's Playwright runner is still unmerged. They are prepared for the integrated browser suite after PR #3 is reviewed.
+- Browser E2E, screen-reader navigation, visual screenshot comparison at 375/768/desktop, and clipboard permission behavior **were not independently run**.
 
 ## Remaining blockers
 1. Merge/review PR #7 before this stacked PR, then retarget this PR to main and rerun CI. Review/merge PRs #1, #3, #5, #6 separately and resolve any conflicts; integration must be tested as a combined release candidate.
