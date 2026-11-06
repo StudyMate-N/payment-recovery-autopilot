@@ -5,3 +5,12 @@ function csvRows(text){if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);const r
 function validDate(date){if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return false;const d=new Date(date+'T00:00:00Z');return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===date}
 export function parseInvoices(text){const rows=csvRows(text);if(rows.length<2)throw Error('Missing invoice rows');const headers=rows.shift().map(x=>x.trim().toLowerCase());if(new Set(headers).size!==headers.length)throw Error('Duplicate CSV headers');for(const field of ['id','customer','email','amount','due'])if(!headers.includes(field))throw Error('Missing '+field);const seen=new Set();return rows.map(row=>{if(row.length!==headers.length)throw Error('Invalid CSV row');const o=Object.fromEntries(headers.map((h,i)=>[h,row[i].trim()]));if(!o.id||seen.has(o.id))throw Error('Invalid or duplicate invoice ID');seen.add(o.id);if(!o.customer)throw Error('Missing customer');if(!/^(0|[1-9]\d{0,8})(\.\d{1,2})?$/.test(o.amount))throw Error('Invalid amount');const cents=Math.round(Number(o.amount)*100);if(!validDate(o.due))throw Error('Invalid due date');if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email))throw Error('Invalid email');if(o.paid!==undefined&&!['true','false',''].includes(o.paid.toLowerCase()))throw Error('Invalid paid status');return {id:o.id,customer:o.customer,email:o.email,cents,due:o.due,paid:o.paid?.toLowerCase()==='true'}})}
 export function draft(i){return 'Subject: Friendly reminder — invoice '+i.id+'\n\nHello '+i.customer+',\n\nA quick reminder that invoice '+i.id+' for '+money(i.cents)+' was due on '+i.due+'. If payment is already on its way, please disregard this note. Otherwise, could you let us know the expected payment date?\n\nThank you.'}
+
+// Importing a CSV's paid=true flag is not evidence of bank settlement.
+// Surface these records for explicit operator confirmation before changing totals.
+export function summarizeInvoiceImport(invoices){
+  if(!Array.isArray(invoices))throw Error('Invalid invoice import');
+  const paidCount=invoices.filter(i=>i.paid===true).length;
+  const paidCents=invoices.reduce((sum,i)=>sum+(i.paid===true?i.cents:0),0);
+  return {count:invoices.length,paidCount,paidCents};
+}
