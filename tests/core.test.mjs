@@ -42,3 +42,7 @@ test('allows exactly 5,000 valid invoice rows',()=>{
   assert.equal(parsed.length,5000);
   assert.equal(parsed[4999].id,'I-4999');
 });
+
+test('rejects CSV whose UTF-8 bytes exceed the limit',()=>{
+  assert.throws(()=>parseInvoices('é'.repeat(500001)),/1 MB/);
+});
