@@ -25,3 +25,20 @@ test('unpaid-only import needs no paid-flag confirmation',()=>{
   const invoices=parseInvoices('id,customer,email,amount,due\nA,Example,a@b.com,1.00,2026-11-01');
   assert.deepEqual(summarizeInvoiceImport(invoices),{count:1,paidCount:0,paidCents:0});
 });
+
+test('rejects oversized CSV before parsing',()=>{
+  assert.throws(()=>parseInvoices('x'.repeat(1000001)),/1 MB/);
+  assert.throws(()=>parseInvoices(null),/1 MB/);
+});
+test('rejects more than 5,000 invoice rows',()=>{
+  const header='id,customer,email,amount,due';
+  const rows=Array.from({length:5001},(_,n)=>`I-${n},Example,a@b.com,1.00,2026-11-01`);
+  assert.throws(()=>parseInvoices([header,...rows].join('\n')),/5,000/);
+});
+test('allows exactly 5,000 valid invoice rows',()=>{
+  const header='id,customer,email,amount,due';
+  const rows=Array.from({length:5000},(_,n)=>`I-${n},Example,a@b.com,1.00,2026-11-01`);
+  const parsed=parseInvoices([header,...rows].join('\n'));
+  assert.equal(parsed.length,5000);
+  assert.equal(parsed[4999].id,'I-4999');
+});
