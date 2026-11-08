@@ -46,3 +46,18 @@ test('allows exactly 5,000 valid invoice rows',()=>{
 test('rejects CSV whose UTF-8 bytes exceed the limit',()=>{
   assert.throws(()=>parseInvoices('é'.repeat(500001)),/1 MB/);
 });
+
+test('CSV rejects text appended after a closing quote instead of silently merging it',()=>{
+  const header='id,customer,email,amount,due';
+  assert.throws(()=>parseInvoices(header+'\nA,"Acme"Injected,a@b.com,10,2026-11-01'),/after closing CSV quote/);
+  assert.throws(()=>parseInvoices(header+'\nA,"Acme" "Other",a@b.com,10,2026-11-01'),/after closing CSV quote/);
+});
+test('CSV rejects a stray quote inside an unquoted field',()=>{
+  assert.throws(()=>parseInvoices('id,customer,email,amount,due\nA,Ac"me,a@b.com,10,2026-11-01'),/Invalid CSV quotation/);
+});
+test('CSV accepts adjacent quoted fields and correctly resets quote state across rows',()=>{
+  const invoices=parseInvoices('id,customer,email,amount,due\n"A","Acme",a@b.com,10,2026-11-01\nB,"Next, Ltd",b@b.com,20,2026-11-02');
+  assert.equal(invoices.length,2);
+  assert.equal(invoices[0].customer,'Acme');
+  assert.equal(invoices[1].customer,'Next, Ltd');
+});
