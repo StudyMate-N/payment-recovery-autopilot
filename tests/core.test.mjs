@@ -61,3 +61,14 @@ test('CSV accepts adjacent quoted fields and correctly resets quote state across
   assert.equal(invoices[0].customer,'Acme');
   assert.equal(invoices[1].customer,'Next, Ltd');
 });
+
+test('rejects bidirectional controls that disguise invoice IDs',()=>{
+  for(const codePoint of [0x061c,0x200e,0x200f,0x202a,0x202e,0x2066,0x2069]){
+    const id='INV-'+String.fromCodePoint(codePoint)+'123';
+    assert.throws(()=>parseInvoices('id,customer,email,amount,due\n'+id+',Acme,a@b.com,10,2026-11-01'),/Invalid or duplicate invoice ID/);
+  }
+});
+test('allows legitimate Unicode invoice IDs',()=>{
+  const invoices=parseInvoices('id,customer,email,amount,due\nINV-é-東京,Acme,a@b.com,10,2026-11-01');
+  assert.equal(invoices[0].id,'INV-é-東京');
+});
