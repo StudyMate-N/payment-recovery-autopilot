@@ -6,7 +6,11 @@
   "scripts": {
     "test": "node --test",
     "check": "node --check app.js && npm test",
-    "serve": "node scripts/serve.mjs"
+    "serve": "node scripts/serve.mjs",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
   },
   "engines": {
     "node": ">=20"
