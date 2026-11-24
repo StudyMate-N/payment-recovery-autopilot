@@ -16,6 +16,13 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
+      - name: Preserve npm-generated dependency lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-lockfile
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 7
       - run: npm run check
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
